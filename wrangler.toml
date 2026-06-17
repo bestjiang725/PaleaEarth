@@ -1,5 +1,4 @@
 # Cloudflare Pages — PaleoEarth
-# 部署命令: npx wrangler pages deploy frontend/dist --project-name=paleoearth
-
+# Dashboard 中 Root directory 设置为 frontend 时，以下路径相对于 frontend/
 name = "paleoearth"
-pages_build_output_dir = "frontend/dist"
+pages_build_output_dir = "dist"
