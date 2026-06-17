@@ -8,20 +8,22 @@ import { EnvironmentOutlined } from '@ant-design/icons'
 import type { ApiResponse, PointQueryResult } from '../../types/api'
 
 export default function MapViewer() {
-  const { selectedAgeMa, selectedVarName } = useAppStore()
-  const { overlayOpacity, setOverlayOpacity } = useMapStore()
+  const selectedAgeMa = useAppStore((s) => s.selectedAgeMa)
+  const selectedVarName = useAppStore((s) => s.selectedVarName)
+  const overlayOpacity = useMapStore((s) => s.overlayOpacity)
+  const setOverlayOpacity = useMapStore((s) => s.setOverlayOpacity)
+  const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError] = useState(false)
   const [clickedPoint, setClickedPoint] = useState<{
     lon: number; lat: number; loading: boolean; result: PointQueryResult | null
   } | null>(null)
 
-  // Reset error state when selection changes
-  const apiBase = import.meta.env.VITE_API_BASE_URL || ''
   const overlayUrl = selectedAgeMa != null && selectedVarName
-    ? `${apiBase}/api/v1/tiles/overlay/${selectedAgeMa}/${selectedVarName}.png`
+    ? `/api/v1/tiles/overlay/${selectedAgeMa}/${selectedVarName}.png`
     : null
 
   useEffect(() => {
+    setImgLoaded(false)
     setImgError(false)
   }, [overlayUrl])
 
@@ -40,7 +42,10 @@ export default function MapViewer() {
   )
 
   return (
-    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0, background: '#d4e8f0' }}>
+    <div style={{
+      flex: 1, position: 'relative', overflow: 'hidden',
+      minHeight: 0, background: '#d4e8f0',
+    }}>
       {/* Status bar */}
       <div style={{
         position: 'absolute', top: 8, left: 8, right: 8, zIndex: 10,
@@ -66,9 +71,7 @@ export default function MapViewer() {
       {/* Map area */}
       <div
         style={{
-          width: '100%',
-          height: '100%',
-          position: 'relative',
+          width: '100%', height: '100%', position: 'relative',
           cursor: selectedAgeMa && selectedVarName ? 'crosshair' : 'default',
         }}
         onClick={(e) => {
@@ -81,39 +84,48 @@ export default function MapViewer() {
           handleMapClick(lon, lat)
         }}
       >
-        {/* Placeholder text when no overlay */}
+        {/* Placeholder */}
         {!overlayUrl && (
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#91c8d8', fontSize: 28, pointerEvents: 'none',
+            color: '#91c8d8', fontSize: 20, pointerEvents: 'none',
             flexDirection: 'column', gap: 8,
           }}>
-            <span>🌍</span>
-            <span>古地球气候可视化</span>
-            <span style={{ fontSize: 14, color: '#aaa' }}>
+            <span>🌍 古地球气候可视化</span>
+            <span style={{ fontSize: 13, color: '#aaa' }}>
               请选择地质年代和气候变量以查看数据
             </span>
           </div>
         )}
 
+        {/* Loading state */}
+        {overlayUrl && !imgLoaded && !imgError && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'none',
+          }}>
+            <Spin size="large" />
+          </div>
+        )}
+
         {/* Climate overlay image */}
-        {overlayUrl && !imgError && (
+        {overlayUrl && (
           <img
             key={overlayUrl}
             src={overlayUrl}
             alt={`${selectedVarName} at ${selectedAgeMa}Ma`}
-            onError={() => setImgError(true)}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => { setImgError(true); setImgLoaded(false); }}
             style={{
               position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              opacity: overlayOpacity,
+              top: 0, left: 0,
+              width: '100%', height: '100%',
+              opacity: imgLoaded ? overlayOpacity : 0,
               objectFit: 'fill',
               pointerEvents: 'none',
-              imageRendering: 'auto',
+              display: 'block',
             }}
           />
         )}
@@ -123,9 +135,11 @@ export default function MapViewer() {
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#ff4d4f', fontSize: 16, pointerEvents: 'none',
+            color: '#ff4d4f', fontSize: 14, pointerEvents: 'none',
+            flexDirection: 'column', gap: 4,
           }}>
-            图像加载失败，请重试
+            <span>⚠️ 图像加载失败</span>
+            <span style={{ fontSize: 11, color: '#999' }}>请尝试其他变量</span>
           </div>
         )}
 
@@ -136,16 +150,14 @@ export default function MapViewer() {
             left: `${((clickedPoint.lon + 180) / 360) * 100}%`,
             top: `${((90 - clickedPoint.lat) / 180) * 100}%`,
             transform: 'translate(-50%, -120%)',
-            background: 'rgba(0,0,0,0.85)',
-            color: '#fff',
-            padding: '6px 12px',
-            borderRadius: 6,
-            fontSize: 12,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-            zIndex: 20,
+            background: 'rgba(0,0,0,0.85)', color: '#fff',
+            padding: '6px 12px', borderRadius: 6,
+            fontSize: 12, pointerEvents: 'none',
+            whiteSpace: 'nowrap', zIndex: 20,
           }}>
-            <div><EnvironmentOutlined /> ({clickedPoint.lon.toFixed(2)}°, {clickedPoint.lat.toFixed(2)}°)</div>
+            <div>
+              <EnvironmentOutlined /> ({clickedPoint.lon.toFixed(2)}°, {clickedPoint.lat.toFixed(2)}°)
+            </div>
             {clickedPoint.loading ? (
               <div><Spin size="small" /> 查询中...</div>
             ) : clickedPoint.result ? (
@@ -162,16 +174,13 @@ export default function MapViewer() {
       {/* Opacity control */}
       <div style={{
         position: 'absolute', bottom: 16, left: 16, zIndex: 10,
-        background: 'rgba(255,255,255,0.92)', borderRadius: 8, padding: '6px 12px',
-        fontSize: 12, display: 'flex', alignItems: 'center', gap: 8,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        background: 'rgba(255,255,255,0.92)', borderRadius: 8,
+        padding: '6px 12px', fontSize: 12, display: 'flex',
+        alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
       }}>
         <span>透明度</span>
         <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
+          type="range" min={0} max={1} step={0.05}
           value={overlayOpacity}
           onChange={(e) => setOverlayOpacity(parseFloat(e.target.value))}
           style={{ width: 80 }}
