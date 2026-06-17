@@ -1,0 +1,5 @@
+# Cloudflare Pages — PaleoEarth
+# 部署命令: npx wrangler pages deploy frontend/dist --project-name=paleoearth
+
+name = "paleoearth"
+pages_build_output_dir = "frontend/dist"
