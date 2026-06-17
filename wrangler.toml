@@ -1,4 +1,3 @@
 # Cloudflare Pages — PaleoEarth
-# Dashboard 中 Root directory 设置为 frontend 时，以下路径相对于 frontend/
 name = "paleoearth"
-pages_build_output_dir = "dist"
+pages_build_output_dir = "frontend/dist"
