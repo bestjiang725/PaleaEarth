@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+.venv/
+*.db
+
+# Node
+node_modules/
+npm-debug.log*
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment
+.env
+.env.local
+.env.production.local
+
+# Storage (generated overlays)
+backend/app/storage/overlays/*.png
+
+# Docker
+*.log

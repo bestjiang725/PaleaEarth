@@ -1,0 +1,56 @@
+/* PaleoEarth Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial,
+    sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+}
+
+#root {
+  max-width: none;
+  padding: 0;
+  text-align: left;
+}
+
+/* Ant Design overrides */
+.ant-collapse-header {
+  padding: 8px 12px !important;
+  font-size: 13px;
+}
+
+.ant-collapse-content-box {
+  padding: 4px 8px !important;
+}
+
+.ant-slider-mark-text {
+  font-size: 10px !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
