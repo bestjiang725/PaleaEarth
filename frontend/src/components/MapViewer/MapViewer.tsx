@@ -1,11 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useMapStore } from '../../stores/mapStore'
 import { queryPoint } from '../../api/queryApi'
+import { fetchCoastlines } from '../../api/paleogeoApi'
 import { formatValue } from '../../utils/format'
-import { Spin, Tag } from 'antd'
+import { Spin, Tag, Switch } from 'antd'
 import { AimOutlined, PlusOutlined, MinusOutlined, ExpandOutlined } from '@ant-design/icons'
 import type { ApiResponse, PointQueryResult } from '../../types/api'
+import type { GeoJSONFeature } from '../../api/paleogeoApi'
 
 export default function MapViewer() {
   const selectedAgeMa = useAppStore((s) => s.selectedAgeMa)
@@ -22,9 +24,54 @@ export default function MapViewer() {
   const [isPanning, setIsPanning] = useState(false)
   const panStart = useRef({ x: 0, y: 0 })
 
+  // Coastlines
+  const [showCoastlines, setShowCoastlines] = useState(false)
+  const [coastlineData, setCoastlineData] = useState<GeoJSONFeature[]>([])
+
   const [clickedPoint, setClickedPoint] = useState<{
     lon: number; lat: number; loading: boolean; result: PointQueryResult | null
   } | null>(null)
+
+  // Fetch coastlines when age changes and toggle is on
+  useEffect(() => {
+    if (!showCoastlines || selectedAgeMa == null) {
+      setCoastlineData([])
+      return
+    }
+    fetchCoastlines(selectedAgeMa).then((res: { data?: { features?: GeoJSONFeature[] } }) => {
+      setCoastlineData(res.data?.features || [])
+    }).catch(() => setCoastlineData([]))
+  }, [selectedAgeMa, showCoastlines])
+
+  // Build coastline SVG paths from GeoJSON
+  const coastlineSvg = useMemo(() => {
+    if (!coastlineData.length) return null
+
+    const paths: string[] = []
+    const toX = (lon: number) => ((lon + 180) / 360) * 100
+    const toY = (lat: number) => ((90 - lat) / 180) * 100
+
+    for (const feat of coastlineData) {
+      const geom = feat.geometry
+      if (!geom) continue
+
+      let rings: number[][][] = []
+      if (geom.type === 'Polygon') rings = geom.coordinates as number[][][]
+      else if (geom.type === 'MultiPolygon') rings = (geom.coordinates as number[][][][]).flatMap((p) => p)
+      else continue
+
+      for (const ring of rings) {
+        if (ring.length < 3) continue
+        let d = `M ${toX(ring[0][0])} ${toY(ring[0][1])}`
+        for (let i = 1; i < ring.length; i++) {
+          d += ` L ${toX(ring[i][0])} ${toY(ring[i][1])}`
+        }
+        d += ' Z'
+        paths.push(d)
+      }
+    }
+    return paths
+  }, [coastlineData])
 
   const overlayUrl = selectedAgeMa != null && selectedVarName
     ? `/api/v1/tiles/overlay/${selectedAgeMa}/${selectedVarName}.png`
@@ -194,6 +241,29 @@ export default function MapViewer() {
           </div>
         )}
 
+        {/* Coastline SVG overlay */}
+        {coastlineSvg && (
+          <svg
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%',
+              pointerEvents: 'none', zIndex: 5,
+            }}
+            viewBox="0 0 100 100" preserveAspectRatio="none"
+          >
+            {coastlineSvg.map((d, i) => (
+              <path
+                key={i}
+                d={d}
+                fill="none"
+                stroke="rgba(45,212,191,0.5)"
+                strokeWidth={0.12}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+        )}
+
         {/* Error */}
         {overlayUrl && imgError && (
           <div style={{
@@ -274,6 +344,22 @@ export default function MapViewer() {
           {Math.round(zoom * 100)}%
         </div>
       )}
+
+      {/* Coastline toggle */}
+      <div style={{
+        position: 'absolute', top: 16, right: 16, zIndex: 10,
+        background: 'rgba(13,17,25,0.9)', borderRadius: 10,
+        border: '1px solid #192030', padding: '8px 14px',
+        display: 'flex', alignItems: 'center', gap: 8,
+        backdropFilter: 'blur(10px)',
+      }}>
+        <span style={{ fontSize: 11, color: '#4a5568' }}>大陆轮廓</span>
+        <Switch
+          size="small"
+          checked={showCoastlines}
+          onChange={(v) => setShowCoastlines(v)}
+        />
+      </div>
 
       {/* Opacity */}
       <div style={{

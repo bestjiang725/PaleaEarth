@@ -9,6 +9,7 @@ from app.api.v1.generate import router as generate_router
 from app.api.v1.tiles import router as tiles_router
 from app.api.v1.task import router as task_router
 from app.api.v1.admin import router as admin_router
+from app.api.v1.paleogeo import router as paleogeo_router
 
 api_v1_router = APIRouter()
 
@@ -19,3 +20,4 @@ api_v1_router.include_router(generate_router, prefix="/generate")
 api_v1_router.include_router(tiles_router, prefix="/tiles")
 api_v1_router.include_router(task_router, prefix="/task")
 api_v1_router.include_router(admin_router, prefix="/admin")
+api_v1_router.include_router(paleogeo_router, prefix="/paleogeo")
