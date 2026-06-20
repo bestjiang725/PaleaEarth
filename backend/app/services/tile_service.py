@@ -1,4 +1,4 @@
-"""TileService: generates paleoclimate overlay images with GPlates continents."""
+"""TileService: generates paleoclimate overlay with GPlates continent masking."""
 
 from pathlib import Path
 import numpy as np
@@ -7,19 +7,16 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.path import Path as MplPath
-from matplotlib.patches import PathPatch
 
 from app.core.config import settings
 
 GPLATES_BASE = "https://gws.gplates.org"
 GPLATES_MODEL = "MERDITH2021"
+OCEAN_COLOR = "#0a1628"
 
 
 class TileService:
-    """Generates equirectangular PNG showing paleoclimate on paleo-continents.
-
-    Ocean = dark blue background. Continents = climate data colors.
-    """
+    """Generates equirectangular PNG: paleoclimate masked to paleo-continents."""
 
     def __init__(self, storage_dir: str | None = None):
         self.storage_dir = Path(storage_dir or settings.STORAGE_DIR) / "overlays"
@@ -31,14 +28,8 @@ class TileService:
     def is_cached(self, age_ma: float, var_name: str) -> bool:
         return self._get_overlay_path(age_ma, var_name).exists()
 
-    def get_cached_path(self, age_ma: float, var_name: str) -> str | None:
-        path = self._get_overlay_path(age_ma, var_name)
-        if path.exists():
-            return f"overlays/{path.name}"
-        return None
-
     def _fetch_continent_polygons(self, age_ma: float) -> list[np.ndarray]:
-        """Fetch GPlates static polygons and convert to contour arrays."""
+        """Fetch GPlates static polygons."""
         import urllib.request
         url = f"{GPLATES_BASE}/reconstruct/static_polygons/?time={age_ma}&model={GPLATES_MODEL}"
         try:
@@ -62,10 +53,27 @@ class TileService:
                 if len(ring) < 3:
                     continue
                 arr = np.array(ring)
-                # Normalize lon to 0-360 if needed
                 arr[:, 0] = np.where(arr[:, 0] < 0, arr[:, 0] + 360, arr[:, 0])
                 polygons.append(arr)
         return polygons
+
+    def _create_land_mask(
+        self,
+        lons: np.ndarray,
+        lats: np.ndarray,
+        polygons: list[np.ndarray],
+    ) -> np.ndarray:
+        """Create a boolean land mask (True = land) from GPlates polygons."""
+        lon_grid, lat_grid = np.meshgrid(lons, lats)
+        points = np.column_stack([lon_grid.ravel(), lat_grid.ravel()])
+        mask = np.zeros(len(points), dtype=bool)
+
+        for poly in polygons:
+            path = MplPath(poly)
+            inside = path.contains_points(points, radius=0.5)
+            mask = mask | inside
+
+        return mask.reshape(len(lats), len(lons))
 
     def generate_overlay(
         self,
@@ -78,10 +86,7 @@ class TileService:
         vmin: float | None = None,
         vmax: float | None = None,
     ) -> str:
-        """Generate a combined paleogeography + climate overlay.
-
-        Ocean = dark blue. Continents = climate colormap.
-        """
+        """Generate paleoclimate map: climate data masked to paleo-continents."""
         valid_data = data[~np.isnan(data)]
         if vmin is None:
             vmin = float(np.percentile(valid_data, 2))
@@ -90,6 +95,9 @@ class TileService:
 
         # Fetch GPlates continent polygons
         continent_polygons = self._fetch_continent_polygons(age_ma)
+        land_mask = None
+        if continent_polygons:
+            land_mask = self._create_land_mask(lons, lats, continent_polygons)
 
         fig_width = settings.OVERLAY_WIDTH / settings.OVERLAY_DPI
         fig_height = settings.OVERLAY_HEIGHT / settings.OVERLAY_DPI
@@ -98,29 +106,32 @@ class TileService:
             figsize=(fig_width, fig_height),
             dpi=settings.OVERLAY_DPI,
         )
+        ax.set_facecolor(OCEAN_COLOR)
 
-        # Ocean background
-        ax.set_facecolor("#0a1628")
+        # Mask climate data: NaN over ocean
+        if land_mask is not None:
+            masked_data = np.where(land_mask, data, np.nan)
+        else:
+            masked_data = data
 
-        # Draw climate data
-        mesh = ax.pcolormesh(
-            lons, lats, data,
+        # Draw climate data (only visible on land)
+        ax.pcolormesh(
+            lons, lats, masked_data,
             cmap=colormap,
             vmin=vmin, vmax=vmax,
             shading="auto",
             rasterized=True,
         )
 
-        # Draw paleo-continent outlines
+        # Draw paleo-continent outlines (thick, bright, visible)
         for poly in continent_polygons:
-            lons_p = poly[:, 0]
-            lats_p = poly[:, 1]
-            ax.plot(lons_p, lats_p,
-                    color=(200/255, 180/255, 150/255, 0.7),
-                    linewidth=0.4,
-                    zorder=10)
+            ax.plot(
+                poly[:, 0], poly[:, 1],
+                color=(220/255, 200/255, 160/255, 0.85),
+                linewidth=0.6,
+                solid_capstyle='round',
+            )
 
-        # Set global extent to match data grid
         ax.set_xlim(lons.min(), lons.max())
         ax.set_ylim(lats.min(), lats.max())
         ax.set_axis_off()
@@ -133,7 +144,7 @@ class TileService:
             bbox_inches="tight",
             pad_inches=0,
             format="png",
-            facecolor="#0a1628",
+            facecolor=OCEAN_COLOR,
             dpi=settings.OVERLAY_DPI,
         )
         plt.close(fig)
