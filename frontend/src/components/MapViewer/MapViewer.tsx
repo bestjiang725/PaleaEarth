@@ -217,15 +217,50 @@ export default function MapViewer() {
         )}
 
         {/* Image layer (zoomable) */}
-        {overlayUrl && (
-          <div style={{
-            position: 'absolute',
-            top: '50%', left: '50%',
-            width: `${100 * zoom}%`,
-            height: `${100 * zoom}%`,
-            transform: `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px))`,
-            transition: isPanning ? 'none' : 'transform 0.2s ease, width 0.2s ease, height 0.2s ease',
-          }}>
+        {/* Zoomable layer: continents (SVG) + climate (PNG) zoom together */}
+        <div style={{
+          position: 'absolute',
+          top: '50%', left: '50%',
+          width: `${100 * zoom}%`,
+          height: `${100 * zoom}%`,
+          transform: `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px))`,
+          transition: isPanning ? 'none' : 'transform 0.2s ease, width 0.2s ease, height 0.2s ease',
+          pointerEvents: 'none',
+        }}>
+          {/* Paleo-continents (behind climate overlay) */}
+          {(continentPaths || coastlinePaths) && (
+            <svg
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+              }}
+              viewBox="0 0 100 100" preserveAspectRatio="none"
+            >
+              {continentPaths && continentPaths.map((d, i) => (
+                <path
+                  key={`land-${i}`}
+                  d={d}
+                  fill="rgba(60,50,40,0.55)"
+                  stroke="rgba(80,70,55,0.5)"
+                  strokeWidth={0.06}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+              {coastlinePaths && coastlinePaths.map((d, i) => (
+                <path
+                  key={`coast-${i}`}
+                  d={d}
+                  fill="none"
+                  stroke="rgba(45,212,191,0.3)"
+                  strokeWidth={0.05}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </svg>
+          )}
+
+          {/* Climate overlay (on top) */}
+          {overlayUrl && (
             <img
               key={overlayUrl}
               src={overlayUrl}
@@ -233,49 +268,14 @@ export default function MapViewer() {
               onLoad={() => setImgLoaded(true)}
               onError={() => { setImgError(true); setImgLoaded(false) }}
               style={{
+                position: 'absolute', inset: 0,
                 width: '100%', height: '100%',
                 opacity: imgLoaded ? overlayOpacity : 0,
                 objectFit: 'fill', display: 'block',
-                pointerEvents: 'none',
               }}
             />
-          </div>
-        )}
-
-        {/* Paleogeography SVG overlay (continents + coastlines) */}
-        {(continentPaths || coastlinePaths) && (
-          <svg
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%',
-              pointerEvents: 'none', zIndex: 5,
-            }}
-            viewBox="0 0 100 100" preserveAspectRatio="none"
-          >
-            {/* Filled continents (land masses) */}
-            {continentPaths && continentPaths.map((d, i) => (
-              <path
-                key={`land-${i}`}
-                d={d}
-                fill="rgba(180,160,140,0.7)"
-                stroke="rgba(140,120,100,0.6)"
-                strokeWidth={0.08}
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-            {/* Coastline outlines */}
-            {coastlinePaths && coastlinePaths.map((d, i) => (
-              <path
-                key={`coast-${i}`}
-                d={d}
-                fill="none"
-                stroke="rgba(45,212,191,0.35)"
-                strokeWidth={0.06}
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-          </svg>
-        )}
+          )}
+        </div>
 
         {/* Error */}
         {overlayUrl && imgError && (
