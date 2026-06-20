@@ -13,9 +13,7 @@ const STATUS_CONFIG: Record<string, { color: string; zh: string }> = {
 
 export default function DownloadPanel() {
   const { data, isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => listTasks(),
-    refetchInterval: 5000,
+    queryKey: ['tasks'], queryFn: () => listTasks(), refetchInterval: 5000,
   })
 
   const tasks = (data as { data: { tasks: TaskStatus[] } } | null)?.data?.tasks || []
@@ -23,52 +21,38 @@ export default function DownloadPanel() {
   return (
     <Card
       title={
-        <span style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 13 }}>
-          <CloudDownloadOutlined style={{ color: '#f59e0b', marginRight: 6 }} />
-          任务列表
+        <span style={{ color: '#e6edf3', fontSize: 13, fontWeight: 500 }}>
+          <CloudDownloadOutlined style={{ color: '#f59e0b', marginRight: 8 }} />
+          任务
           <Tag style={{
-            marginLeft: 8, fontSize: 10, lineHeight: '16px', padding: '0 5px',
-            background: 'rgba(245,158,11,0.12)', border: 'none', color: '#fbbf24',
-          }}>
-            {tasks.length}
-          </Tag>
+            marginLeft: 10, fontSize: 10, lineHeight: '16px', padding: '0 6px',
+            background: 'rgba(245,158,11,0.1)', border: 'none', color: '#fbbf24',
+          }}>{tasks.length}</Tag>
         </span>
       }
       size="small"
-      style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}
-      bodyStyle={{ padding: '4px 8px', maxHeight: 200, overflowY: 'auto' }}
+      style={{ borderLeft: 'none', borderRight: 'none', borderTop: 'none', borderBottom: 'none' }}
     >
-      {isLoading ? (
-        <Spin />
-      ) : tasks.length > 0 ? (
-        <Table
-          size="small"
-          pagination={false}
-          dataSource={tasks.slice(0, 10)}
-          rowKey="task_id"
+      {isLoading ? <Spin /> : tasks.length > 0 ? (
+        <Table size="small" pagination={false} dataSource={tasks.slice(0, 10)} rowKey="task_id" showHeader={false}
           columns={[
-            {
-              title: '', dataIndex: 'status', key: 'status', width: 60,
+            { title: '', dataIndex: 'status', key: 'status', width: 60,
               render: (s: string) => {
                 const cfg = STATUS_CONFIG[s] || { color: 'default', zh: s }
                 return <Tag color={cfg.color} style={{ fontSize: 10 }}>{cfg.zh}</Tag>
               },
             },
-            {
-              title: '', dataIndex: 'task_type', key: 'type', width: 100,
-              render: (t: string) => <span style={{ color: '#94a3b8', fontSize: 10 }}>{t}</span>,
+            { title: '', dataIndex: 'task_type', key: 'type', width: 110,
+              render: (t: string) => <span style={{ color: '#8899aa', fontSize: 10 }}>{t}</span>,
             },
-            {
-              title: '', dataIndex: 'progress', key: 'progress', width: 40,
+            { title: '', dataIndex: 'progress', key: 'progress', width: 40,
               render: (p: number) => (
-                <span style={{ color: '#60a5fa', fontSize: 10, fontFamily: "'Fira Code', monospace" }}>{p}%</span>
+                <span style={{ color: '#93c5fd', fontSize: 10, fontFamily: "'Fira Code', monospace" }}>{p}%</span>
               ),
             },
-          ]}
-          showHeader={false}
-        />
+          ]} />
       ) : (
-        <Empty description={<span style={{ color: '#5a6677' }}>暂无任务</span>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={<span style={{ color: '#4a5568' }}>暂无任务</span>} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       )}
     </Card>
   )
