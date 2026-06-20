@@ -24,8 +24,8 @@ export default function MapViewer() {
   const [isPanning, setIsPanning] = useState(false)
   const panStart = useRef({ x: 0, y: 0 })
 
-  // Paleogeography (continents + coastlines)
-  const [showPaleogeo, setShowPaleogeo] = useState(false)
+  // Paleogeography (continents + coastlines) — on by default
+  const [showPaleogeo, setShowPaleogeo] = useState(true)
   const [continentData, setContinentData] = useState<GeoJSONFeature[]>([])
   const [coastlineData, setCoastlineData] = useState<GeoJSONFeature[]>([])
 
