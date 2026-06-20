@@ -1,4 +1,4 @@
-"""TileService: global climate data with paleo-continent overlay."""
+"""TileService: professional paleoclimate visualization with smooth rendering."""
 
 from pathlib import Path
 import numpy as np
@@ -6,15 +6,16 @@ import json
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
 
 from app.core.config import settings
 
 GPLATES_BASE = "https://gws.gplates.org"
 GPLATES_MODEL = "MERDITH2021"
+BG_COLOR = "#0d1117"
 
 
 class TileService:
-    """Render global climate data + paleo-continents as semi-transparent overlay."""
 
     def __init__(self, storage_dir: str | None = None):
         self.storage_dir = Path(storage_dir or settings.STORAGE_DIR) / "overlays"
@@ -27,7 +28,6 @@ class TileService:
         return self._get_overlay_path(age_ma, var_name).exists()
 
     def _fetch_continent_polygons(self, age_ma: float) -> list[np.ndarray]:
-        """Fetch GPlates static polygons."""
         import urllib.request
         url = f"{GPLATES_BASE}/reconstruct/static_polygons/?time={age_ma}&model={GPLATES_MODEL}"
         try:
@@ -55,6 +55,42 @@ class TileService:
                 polygons.append(arr)
         return polygons
 
+    def _upsample(self, data: np.ndarray, lons: np.ndarray, lats: np.ndarray,
+                  factor: int = 4) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Upsample coarse 96x73 grid to smooth high-res grid via interpolation."""
+        lon_grid, lat_grid = np.meshgrid(lons, lats)
+
+        nlons = len(lons) * factor
+        nlats = len(lats) * factor
+        new_lons = np.linspace(lons.min(), lons.max(), nlons)
+        new_lats = np.linspace(lats.min(), lats.max(), nlats)
+        new_lon_grid, new_lat_grid = np.meshgrid(new_lons, new_lats)
+
+        valid = ~np.isnan(data)
+        if valid.sum() < 3:
+            return data, lons, lats
+
+        points = np.column_stack([lon_grid[valid].ravel(), lat_grid[valid].ravel()])
+        values = data[valid].ravel()
+
+        smooth = griddata(
+            points, values,
+            (new_lon_grid, new_lat_grid),
+            method='cubic',
+            fill_value=np.nan,
+        )
+        # Fill NaN edges with nearest
+        mask = np.isnan(smooth)
+        if mask.any():
+            nearest = griddata(
+                points, values,
+                (new_lon_grid, new_lat_grid),
+                method='nearest',
+            )
+            smooth[mask] = nearest[mask]
+
+        return smooth, new_lons, new_lats
+
     def generate_overlay(
         self,
         data: np.ndarray,
@@ -66,49 +102,40 @@ class TileService:
         vmin: float | None = None,
         vmax: float | None = None,
     ) -> str:
-        """Global climate data + paleo-continent overlay."""
-        valid_data = data[~np.isnan(data)]
+        # Value range
+        valid = data[~np.isnan(data)]
         if vmin is None:
-            vmin = float(np.percentile(valid_data, 2))
+            vmin = float(np.percentile(valid, 2))
         if vmax is None:
-            vmax = float(np.percentile(valid_data, 98))
+            vmax = float(np.percentile(valid, 98))
 
+        # Upsample for smooth rendering
+        smooth_data, smooth_lons, smooth_lats = self._upsample(data, lons, lats, factor=4)
+
+        # Fetch GPlates continents
         continent_polygons = self._fetch_continent_polygons(age_ma)
 
-        fig_width = settings.OVERLAY_WIDTH / settings.OVERLAY_DPI
-        fig_height = settings.OVERLAY_HEIGHT / settings.OVERLAY_DPI
+        w = settings.OVERLAY_WIDTH / settings.OVERLAY_DPI
+        h = settings.OVERLAY_HEIGHT / settings.OVERLAY_DPI
 
-        fig, ax = plt.subplots(
-            figsize=(fig_width, fig_height),
-            dpi=settings.OVERLAY_DPI,
-        )
+        fig, ax = plt.subplots(figsize=(w, h), dpi=settings.OVERLAY_DPI)
+        fig.patch.set_facecolor(BG_COLOR)
+        ax.set_facecolor(BG_COLOR)
 
-        # Layer 1: Full global climate data
+        # Smooth climate data
         ax.pcolormesh(
-            lons, lats, data,
-            cmap=colormap,
-            vmin=vmin, vmax=vmax,
-            shading="auto",
+            smooth_lons, smooth_lats, smooth_data,
+            cmap=colormap, vmin=vmin, vmax=vmax,
+            shading='gouraud',
             rasterized=True,
-            zorder=1,
         )
 
-        # Layer 2: Paleo-continents as semi-transparent fill + outline
+        # Paleo-continent outlines — clean white lines
         for poly in continent_polygons:
-            # Semi-transparent brown fill for land
-            ax.fill(
-                poly[:, 0], poly[:, 1],
-                facecolor=(0, 0, 0, 0.25),
-                edgecolor="none",
-                zorder=2,
-            )
-            # Visible outline
             ax.plot(
                 poly[:, 0], poly[:, 1],
-                color=(255/255, 255/255, 255/255, 0.9),
-                linewidth=0.8,
-                solid_capstyle='round',
-                zorder=3,
+                color='white', linewidth=0.5, alpha=0.7,
+                solid_capstyle='round', solid_joinstyle='round',
             )
 
         ax.set_xlim(lons.min(), lons.max())
@@ -120,18 +147,13 @@ class TileService:
         output_path = self._get_overlay_path(age_ma, var_name)
         fig.savefig(
             output_path,
-            bbox_inches="tight",
-            pad_inches=0,
-            format="png",
-            facecolor="#0a1628",
+            bbox_inches='tight', pad_inches=0,
+            format='png', facecolor=BG_COLOR,
             dpi=settings.OVERLAY_DPI,
         )
         plt.close(fig)
-
         return f"overlays/{output_path.name}"
 
     def get_data_range(self, data: np.ndarray) -> tuple[float, float]:
         valid = data[~np.isnan(data)]
-        vmin = float(np.percentile(valid, 2))
-        vmax = float(np.percentile(valid, 98))
-        return vmin, vmax
+        return float(np.percentile(valid, 2)), float(np.percentile(valid, 98))
