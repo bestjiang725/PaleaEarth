@@ -15,14 +15,23 @@ GPLATES_MODEL = "MERDITH2021"
 async def get_coastlines(
     age_ma: float = Query(..., description="地质年代(Ma)"),
 ):
-    """获取古海岸线 GeoJSON — 代理 GPlates Web Service"""
+    """获取古海岸线 GeoJSON"""
     url = f"{GPLATES_BASE}/reconstruct/coastlines/"
-    params = {"time": age_ma, "model": GPLATES_MODEL}
-
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(url, params=params)
-
+        resp = await client.get(url, params={"time": age_ma, "model": GPLATES_MODEL})
     if resp.status_code == 200:
         return ApiResponse(data=resp.json())
+    return ApiResponse(code=resp.status_code, data=None, msg=resp.text)
 
+
+@router.get("/continents")
+async def get_continents(
+    age_ma: float = Query(..., description="地质年代(Ma)"),
+):
+    """获取古大陆板块多边形 GeoJSON"""
+    url = f"{GPLATES_BASE}/reconstruct/static_polygons/"
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(url, params={"time": age_ma, "model": GPLATES_MODEL})
+    if resp.status_code == 200:
+        return ApiResponse(data=resp.json())
     return ApiResponse(code=resp.status_code, data=None, msg=resp.text)

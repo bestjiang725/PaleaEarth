@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useMapStore } from '../../stores/mapStore'
 import { queryPoint } from '../../api/queryApi'
-import { fetchCoastlines } from '../../api/paleogeoApi'
+import { fetchCoastlines, fetchContinents } from '../../api/paleogeoApi'
 import { formatValue } from '../../utils/format'
 import { Spin, Tag, Switch } from 'antd'
 import { AimOutlined, PlusOutlined, MinusOutlined, ExpandOutlined } from '@ant-design/icons'
@@ -24,54 +24,55 @@ export default function MapViewer() {
   const [isPanning, setIsPanning] = useState(false)
   const panStart = useRef({ x: 0, y: 0 })
 
-  // Coastlines
-  const [showCoastlines, setShowCoastlines] = useState(false)
+  // Paleogeography (continents + coastlines)
+  const [showPaleogeo, setShowPaleogeo] = useState(false)
+  const [continentData, setContinentData] = useState<GeoJSONFeature[]>([])
   const [coastlineData, setCoastlineData] = useState<GeoJSONFeature[]>([])
 
   const [clickedPoint, setClickedPoint] = useState<{
     lon: number; lat: number; loading: boolean; result: PointQueryResult | null
   } | null>(null)
 
-  // Fetch coastlines when age changes and toggle is on
+  // Fetch paleogeography when age changes and toggle is on
   useEffect(() => {
-    if (!showCoastlines || selectedAgeMa == null) {
+    if (!showPaleogeo || selectedAgeMa == null) {
+      setContinentData([])
       setCoastlineData([])
       return
     }
+    fetchContinents(selectedAgeMa).then((res: { data?: { features?: GeoJSONFeature[] } }) => {
+      setContinentData(res.data?.features || [])
+    }).catch(() => setContinentData([]))
     fetchCoastlines(selectedAgeMa).then((res: { data?: { features?: GeoJSONFeature[] } }) => {
       setCoastlineData(res.data?.features || [])
     }).catch(() => setCoastlineData([]))
-  }, [selectedAgeMa, showCoastlines])
+  }, [selectedAgeMa, showPaleogeo])
 
-  // Build coastline SVG paths from GeoJSON
-  const coastlineSvg = useMemo(() => {
-    if (!coastlineData.length) return null
-
-    const paths: string[] = []
+  // Convert GeoJSON features to SVG path string
+  const geoToSvg = (features: GeoJSONFeature[]) => {
     const toX = (lon: number) => ((lon + 180) / 360) * 100
     const toY = (lat: number) => ((90 - lat) / 180) * 100
-
-    for (const feat of coastlineData) {
+    const paths: string[] = []
+    for (const feat of features) {
       const geom = feat.geometry
       if (!geom) continue
-
       let rings: number[][][] = []
       if (geom.type === 'Polygon') rings = geom.coordinates as number[][][]
       else if (geom.type === 'MultiPolygon') rings = (geom.coordinates as number[][][][]).flatMap((p) => p)
       else continue
-
       for (const ring of rings) {
         if (ring.length < 3) continue
         let d = `M ${toX(ring[0][0])} ${toY(ring[0][1])}`
-        for (let i = 1; i < ring.length; i++) {
-          d += ` L ${toX(ring[i][0])} ${toY(ring[i][1])}`
-        }
+        for (let i = 1; i < ring.length; i++) d += ` L ${toX(ring[i][0])} ${toY(ring[i][1])}`
         d += ' Z'
         paths.push(d)
       }
     }
     return paths
-  }, [coastlineData])
+  }
+
+  const continentPaths = useMemo(() => geoToSvg(continentData), [continentData])
+  const coastlinePaths = useMemo(() => geoToSvg(coastlineData), [coastlineData])
 
   const overlayUrl = selectedAgeMa != null && selectedVarName
     ? `/api/v1/tiles/overlay/${selectedAgeMa}/${selectedVarName}.png`
@@ -241,8 +242,8 @@ export default function MapViewer() {
           </div>
         )}
 
-        {/* Coastline SVG overlay */}
-        {coastlineSvg && (
+        {/* Paleogeography SVG overlay (continents + coastlines) */}
+        {(continentPaths || coastlinePaths) && (
           <svg
             style={{
               position: 'absolute', inset: 0,
@@ -251,13 +252,25 @@ export default function MapViewer() {
             }}
             viewBox="0 0 100 100" preserveAspectRatio="none"
           >
-            {coastlineSvg.map((d, i) => (
+            {/* Filled continents (land masses) */}
+            {continentPaths && continentPaths.map((d, i) => (
               <path
-                key={i}
+                key={`land-${i}`}
+                d={d}
+                fill="rgba(180,160,140,0.7)"
+                stroke="rgba(140,120,100,0.6)"
+                strokeWidth={0.08}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+            {/* Coastline outlines */}
+            {coastlinePaths && coastlinePaths.map((d, i) => (
+              <path
+                key={`coast-${i}`}
                 d={d}
                 fill="none"
-                stroke="rgba(45,212,191,0.5)"
-                strokeWidth={0.12}
+                stroke="rgba(45,212,191,0.35)"
+                strokeWidth={0.06}
                 vectorEffect="non-scaling-stroke"
               />
             ))}
@@ -353,11 +366,11 @@ export default function MapViewer() {
         display: 'flex', alignItems: 'center', gap: 8,
         backdropFilter: 'blur(10px)',
       }}>
-        <span style={{ fontSize: 11, color: '#4a5568' }}>大陆轮廓</span>
+        <span style={{ fontSize: 11, color: '#4a5568' }}>古大陆</span>
         <Switch
           size="small"
-          checked={showCoastlines}
-          onChange={(v) => setShowCoastlines(v)}
+          checked={showPaleogeo}
+          onChange={(v) => setShowPaleogeo(v)}
         />
       </div>
 

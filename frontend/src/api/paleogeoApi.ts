@@ -19,3 +19,9 @@ export function fetchCoastlines(ageMa: number) {
     params: { age_ma: ageMa },
   }) as Promise<ApiResponse<GeoJSONCollection>>
 }
+
+export function fetchContinents(ageMa: number) {
+  return apiClient.get('/paleogeo/continents', {
+    params: { age_ma: ageMa },
+  }) as Promise<ApiResponse<GeoJSONCollection>>
+}
