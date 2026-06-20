@@ -21,9 +21,6 @@ export default function Timeline() {
 
   const ageItems = data?.data || []
 
-  const marks: Record<number, string> = {}
-  for (const a of ageItems) marks[a.age_ma] = `${a.age_ma}`
-
   const sliderMin = ageItems.length > 0 ? Math.min(...ageItems.map((a: { age_ma: number }) => a.age_ma)) : 505
   const sliderMax = ageItems.length > 0 ? Math.max(...ageItems.map((a: { age_ma: number }) => a.age_ma)) : 430
 
@@ -115,14 +112,19 @@ export default function Timeline() {
 
       {/* ─── Slider ─── */}
       <div style={{ padding: '0 6px' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          fontSize: 10, fontFamily: "'Fira Code', monospace",
+          color: '#4a5568', marginBottom: 4, padding: '0 4px',
+        }}>
+          <span>{sliderMax} Ma</span>
+          <span>{sliderMin} Ma</span>
+        </div>
         <Slider
-          min={sliderMin} max={sliderMax} step={null}
-          marks={marks}
+          min={sliderMin} max={sliderMax} step={1}
           value={selectedAgeMa ?? undefined}
           onChange={(v) => setSelectedAge(v as number)}
-          tooltip={{
-            formatter: (v) => `${v} Ma`,
-          }}
+          tooltip={{ formatter: (v) => `${v} Ma` }}
           style={{ marginBottom: 12 }}
         />
       </div>
