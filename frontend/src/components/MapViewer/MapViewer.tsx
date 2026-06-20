@@ -4,7 +4,7 @@ import { useMapStore } from '../../stores/mapStore'
 import { queryPoint } from '../../api/queryApi'
 import { formatValue } from '../../utils/format'
 import { Spin, Tag } from 'antd'
-import { EnvironmentOutlined } from '@ant-design/icons'
+import { AimOutlined } from '@ant-design/icons'
 import type { ApiResponse, PointQueryResult } from '../../types/api'
 
 export default function MapViewer() {
@@ -44,26 +44,38 @@ export default function MapViewer() {
   return (
     <div style={{
       flex: 1, position: 'relative', overflow: 'hidden',
-      minHeight: 0, background: '#d4e8f0',
+      minHeight: 0, background: '#0a0d14',
     }}>
       {/* Status bar */}
       <div style={{
-        position: 'absolute', top: 8, left: 8, right: 8, zIndex: 10,
+        position: 'absolute', top: 10, left: 12, right: 12, zIndex: 10,
         display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
       }}>
         {selectedAgeMa != null && selectedVarName && (
-          <Tag color="blue" style={{ fontSize: 13, padding: '2px 10px' }}>
+          <Tag style={{
+            fontSize: 12, padding: '4px 12px',
+            background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+            color: '#60a5fa', borderRadius: 6,
+          }}>
             {selectedAgeMa} Ma · {selectedVarName}
           </Tag>
         )}
         {selectedAgeMa == null && (
-          <Tag color="default" style={{ fontSize: 13 }}>
-            请选择一个地质年代
+          <Tag style={{
+            fontSize: 12, padding: '4px 12px',
+            background: 'rgba(255,255,255,0.04)', border: '1px solid #1e2740',
+            color: '#94a3b8', borderRadius: 6,
+          }}>
+            选择地质年代
           </Tag>
         )}
         {!selectedVarName && (
-          <Tag color="default" style={{ fontSize: 13 }}>
-            请选择一个气候变量
+          <Tag style={{
+            fontSize: 12, padding: '4px 12px',
+            background: 'rgba(255,255,255,0.04)', border: '1px solid #1e2740',
+            color: '#94a3b8', borderRadius: 6,
+          }}>
+            选择气候变量
           </Tag>
         )}
       </div>
@@ -84,27 +96,34 @@ export default function MapViewer() {
           handleMapClick(lon, lat)
         }}
       >
-        {/* Placeholder */}
+        {/* Placeholder — no overlay selected */}
         {!overlayUrl && (
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#91c8d8', fontSize: 20, pointerEvents: 'none',
-            flexDirection: 'column', gap: 8,
+            pointerEvents: 'none', flexDirection: 'column', gap: 10,
           }}>
-            <span>🌍 古地球气候可视化</span>
-            <span style={{ fontSize: 13, color: '#aaa' }}>
-              请选择地质年代和气候变量以查看数据
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 8,
+            }}>
+              <span style={{ fontSize: 32, filter: 'grayscale(0.3)' }}>🌍</span>
+            </div>
+            <span style={{ fontSize: 18, color: '#94a3b8', fontWeight: 400 }}>DeepEarth</span>
+            <span style={{ fontSize: 12, color: '#5a6677' }}>
+              选择地质年代与气候变量以查看数据
             </span>
           </div>
         )}
 
-        {/* Loading state */}
+        {/* Loading spinner */}
         {overlayUrl && !imgLoaded && !imgError && (
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            pointerEvents: 'none',
+            pointerEvents: 'none', background: 'rgba(10,13,20,0.5)',
           }}>
             <Spin size="large" />
           </div>
@@ -135,11 +154,11 @@ export default function MapViewer() {
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#ff4d4f', fontSize: 14, pointerEvents: 'none',
-            flexDirection: 'column', gap: 4,
+            color: '#ef4444', fontSize: 14, pointerEvents: 'none',
+            flexDirection: 'column', gap: 4, background: 'rgba(10,13,20,0.7)',
           }}>
-            <span>⚠️ 图像加载失败</span>
-            <span style={{ fontSize: 11, color: '#999' }}>请尝试其他变量</span>
+            <span style={{ fontSize: 20, marginBottom: 4 }}>⚠</span>
+            <span>图像加载失败</span>
           </div>
         )}
 
@@ -150,22 +169,24 @@ export default function MapViewer() {
             left: `${((clickedPoint.lon + 180) / 360) * 100}%`,
             top: `${((90 - clickedPoint.lat) / 180) * 100}%`,
             transform: 'translate(-50%, -120%)',
-            background: 'rgba(0,0,0,0.85)', color: '#fff',
-            padding: '6px 12px', borderRadius: 6,
+            background: 'rgba(10,13,20,0.92)',
+            border: '1px solid #1e2740',
+            color: '#e2e8f0', padding: '8px 14px', borderRadius: 8,
             fontSize: 12, pointerEvents: 'none',
             whiteSpace: 'nowrap', zIndex: 20,
+            backdropFilter: 'blur(8px)',
           }}>
-            <div>
-              <EnvironmentOutlined /> ({clickedPoint.lon.toFixed(2)}°, {clickedPoint.lat.toFixed(2)}°)
+            <div style={{ color: '#94a3b8', marginBottom: 2 }}>
+              <AimOutlined /> {clickedPoint.lon.toFixed(2)}°E, {clickedPoint.lat.toFixed(2)}°N
             </div>
             {clickedPoint.loading ? (
-              <div><Spin size="small" /> 查询中...</div>
+              <Spin size="small" />
             ) : clickedPoint.result ? (
-              <div style={{ fontWeight: 600, marginTop: 2 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: '#60a5fa' }}>
                 {formatValue(clickedPoint.result.value, clickedPoint.result.units)}
               </div>
             ) : (
-              <div style={{ color: '#ff4d4f' }}>无数据</div>
+              <div style={{ color: '#ef4444' }}>无数据</div>
             )}
           </div>
         )}
@@ -173,19 +194,26 @@ export default function MapViewer() {
 
       {/* Opacity control */}
       <div style={{
-        position: 'absolute', bottom: 16, left: 16, zIndex: 10,
-        background: 'rgba(255,255,255,0.92)', borderRadius: 8,
-        padding: '6px 12px', fontSize: 12, display: 'flex',
-        alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        position: 'absolute', bottom: 14, left: 14, zIndex: 10,
+        background: 'rgba(14,18,26,0.9)', borderRadius: 8,
+        border: '1px solid #1e2740',
+        padding: '8px 14px', fontSize: 11, display: 'flex',
+        alignItems: 'center', gap: 8, backdropFilter: 'blur(8px)',
+        color: '#94a3b8',
       }}>
-        <span>透明度</span>
+        <span style={{ color: '#5a6677' }}>透明度</span>
         <input
           type="range" min={0} max={1} step={0.05}
           value={overlayOpacity}
           onChange={(e) => setOverlayOpacity(parseFloat(e.target.value))}
-          style={{ width: 80 }}
+          style={{
+            width: 70, accentColor: '#3b82f6',
+            background: '#1e2740', height: 3, borderRadius: 2,
+          }}
         />
-        <span>{Math.round(overlayOpacity * 100)}%</span>
+        <span style={{ color: '#60a5fa', fontFamily: "'Fira Code', monospace", width: 28 }}>
+          {Math.round(overlayOpacity * 100)}%
+        </span>
       </div>
     </div>
   )

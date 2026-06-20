@@ -1,19 +1,24 @@
-import { Layout, Result } from 'antd'
 import Header from '../components/Layout/Header'
 
 export default function ComparePage() {
   return (
-    <Layout style={{ height: '100vh' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0a0d14' }}>
       <Header />
-      <Layout.Content style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: 12, color: '#94a3b8',
       }}>
-        <Result
-          title="对比模式"
-          subTitle="双时间点/双属性并排对比功能将在 Phase 2 实现"
-          status="info"
-        />
-      </Layout.Content>
-    </Layout>
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 8,
+        }}>
+          <span style={{ fontSize: 24 }}>🔬</span>
+        </div>
+        <span style={{ fontSize: 18, color: '#cbd5e1', fontWeight: 500 }}>对比模式</span>
+        <span style={{ fontSize: 13, color: '#5a6677' }}>双时间点/双属性并排对比 — Phase 2</span>
+      </div>
+    </div>
   )
 }

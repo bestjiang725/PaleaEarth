@@ -1,46 +1,50 @@
 import { Card, Button, Space, Slider, Tag, Spin } from 'antd'
+import { ClockCircleOutlined } from '@ant-design/icons'
 import { useAges } from '../../hooks/useTimeline'
 import { useAppStore } from '../../stores/appStore'
 import { formatAge } from '../../utils/format'
 import { useState, useMemo } from 'react'
 
-const ERA_INFO = {
-  Paleozoic: { color: '#4caf50', zh: '古生代' },
-  Mesozoic: { color: '#2196f3', zh: '中生代' },
-  Cenozoic: { color: '#ff9800', zh: '新生代' },
+const ERA_COLORS: Record<string, { color: string; zh: string }> = {
+  Paleozoic: { color: '#3b82f6', zh: '古生代' },
+  Mesozoic: { color: '#06b6d4', zh: '中生代' },
+  Cenozoic: { color: '#f59e0b', zh: '新生代' },
 }
 
 export default function Timeline() {
   const { data, isLoading } = useAges()
-  const { selectedAgeMa, setSelectedAge } = useAppStore()
+  const selectedAgeMa = useAppStore((s) => s.selectedAgeMa)
+  const setSelectedAge = useAppStore((s) => s.setSelectedAge)
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null)
 
-  const ages = data?.data || []
+  const ageItems = data?.data || []
 
-  // Group ages by period
   const periodGroups = useMemo(() => {
     const groups: Record<string, { period: string; era: string; ages: number[] }> = {}
-    for (const a of ages) {
+    for (const a of ageItems) {
       if (!groups[a.period]) {
         groups[a.period] = { period: a.period, era: a.era, ages: [] }
       }
       groups[a.period].ages.push(a.age_ma)
     }
     return Object.values(groups)
-  }, [ages])
+  }, [ageItems])
 
-  // Build slider marks
   const marks: Record<number, string> = {}
-  for (const a of ages) {
+  for (const a of ageItems) {
     marks[a.age_ma] = `${a.age_ma}`
   }
 
-  const sliderMin = ages.length > 0 ? Math.min(...ages.map((a) => a.age_ma)) : 0
-  const sliderMax = ages.length > 0 ? Math.max(...ages.map((a) => a.age_ma)) : 0
+  const sliderMin = ageItems.length > 0 ? Math.min(...ageItems.map((a: { age_ma: number }) => a.age_ma)) : 0
+  const sliderMax = ageItems.length > 0 ? Math.max(...ageItems.map((a: { age_ma: number }) => a.age_ma)) : 0
 
   if (isLoading) {
     return (
-      <Card title="地质年代" size="small" style={{ borderRadius: 0 }}>
+      <Card
+        title={<span style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 13 }}><ClockCircleOutlined /> 地质年代</span>}
+        size="small"
+        style={{ borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}
+      >
         <Spin />
       </Card>
     )
@@ -48,38 +52,52 @@ export default function Timeline() {
 
   return (
     <Card
-      title="地质年代时间轴"
+      title={
+        <span style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 13 }}>
+          <ClockCircleOutlined style={{ color: '#3b82f6', marginRight: 6 }} />
+          地质年代
+          <Tag color="blue" style={{ marginLeft: 8, fontSize: 10, lineHeight: '16px', background: 'rgba(59,130,246,0.15)', border: 'none', color: '#60a5fa' }}>
+            {ageItems.length} 时间切片
+          </Tag>
+        </span>
+      }
       size="small"
-      style={{ borderRadius: 0, borderTop: 'none' }}
-      bodyStyle={{ padding: '8px 12px' }}
+      style={{
+        borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none',
+      }}
+      bodyStyle={{ padding: '10px 14px' }}
     >
       {/* Period selector */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>纪 (Period)</div>
-        <Space wrap>
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: '#5a6677', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>纪 Period</div>
+        <Space wrap size={4}>
           {periodGroups.map((pg) => (
             <Button
               key={pg.period}
               size="small"
               type={selectedPeriod === pg.period ? 'primary' : 'default'}
-              onClick={() => {
-                setSelectedPeriod(selectedPeriod === pg.period ? null : pg.period)
+              onClick={() => setSelectedPeriod(selectedPeriod === pg.period ? null : pg.period)}
+              style={{
+                fontSize: 11,
+                padding: '0 8px',
+                height: 26,
+                background: selectedPeriod === pg.period ? undefined : 'rgba(30,39,64,0.5)',
+                borderColor: selectedPeriod === pg.period ? undefined : '#1e2740',
               }}
             >
               {pg.period}
-              <Tag
-                color={ERA_INFO[pg.era as keyof typeof ERA_INFO]?.color || '#999'}
-                style={{ marginLeft: 4, fontSize: 10, lineHeight: '16px', padding: '0 4px' }}
-              >
-                {ERA_INFO[pg.era as keyof typeof ERA_INFO]?.zh || pg.era}
-              </Tag>
+              <span style={{
+                display: 'inline-block', width: 6, height: 6, borderRadius: 3,
+                background: ERA_COLORS[pg.era]?.color || '#999',
+                marginLeft: 6,
+              }} />
             </Button>
           ))}
         </Space>
       </div>
 
       {/* Age slider */}
-      <div style={{ padding: '0 8px' }}>
+      <div style={{ padding: '0 4px' }}>
         <Slider
           min={sliderMin}
           max={sliderMax}
@@ -87,18 +105,22 @@ export default function Timeline() {
           marks={marks}
           value={selectedAgeMa ?? undefined}
           onChange={(v) => setSelectedAge(v as number)}
-          tooltip={{ formatter: (v) => formatAge(v!) }}
-          style={{ marginBottom: 8 }}
+          tooltip={{
+            formatter: (v) => formatAge(v!),
+          }}
         />
       </div>
 
-      {/* Current selection display */}
-      {selectedAgeMa && (
-        <div style={{ textAlign: 'center', fontSize: 13, color: '#1677ff', fontWeight: 500 }}>
-          已选: {formatAge(selectedAgeMa)}
+      {/* Current selection */}
+      {selectedAgeMa != null && (
+        <div style={{
+          textAlign: 'center', fontSize: 12, color: '#60a5fa', fontWeight: 500,
+          marginTop: 2,
+        }}>
+          {formatAge(selectedAgeMa)}
           {(() => {
-            const a = ages.find((x) => x.age_ma === selectedAgeMa)
-            return a ? ` — ${a.era} / ${a.period}${a.epoch ? ` / ${a.epoch}` : ''}` : ''
+            const a = ageItems.find((x: { age_ma: number }) => x.age_ma === selectedAgeMa)
+            return a ? ` · ${a.era}/${a.period}${a.epoch ? ` · ${a.epoch}` : ''}` : ''
           })()}
         </div>
       )}

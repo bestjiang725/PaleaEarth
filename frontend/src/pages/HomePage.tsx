@@ -8,7 +8,10 @@ import DownloadPanel from '../components/DownloadPanel/DownloadPanel'
 
 export default function HomePage() {
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{
+      height: '100vh', display: 'flex', flexDirection: 'column',
+      overflow: 'hidden', background: '#0a0d14',
+    }}>
       <Header />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <Sidebar>
@@ -16,8 +19,10 @@ export default function HomePage() {
           <VariableSelector />
           <DownloadPanel />
         </Sidebar>
-        {/* Main content: map + data panel */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          overflow: 'hidden', minWidth: 0,
+        }}>
           <MapViewer />
           <DataPanel />
         </div>
